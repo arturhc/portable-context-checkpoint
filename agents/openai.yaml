@@ -1,0 +1,4 @@
+interface:
+  display_name: "Portable Context"
+  short_description: "Empaqueta un checkpoint portable del hilo actual."
+  default_prompt: "Usa esta skill para extraer y estructurar un contexto portable completo del hilo actual, listo para pegarse en un nuevo hilo sin perder continuidad."
