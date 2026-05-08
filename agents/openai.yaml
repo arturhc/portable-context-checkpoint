@@ -1,4 +1,4 @@
 interface:
   display_name: "Portable Context"
-  short_description: "Empaqueta un checkpoint portable del hilo actual."
-  default_prompt: "Usa esta skill para extraer y estructurar un contexto portable completo del hilo actual, listo para pegarse en un nuevo hilo sin perder continuidad."
+  short_description: "Crea un handoff portable con hechos verificados, redaccion segura y siguientes pasos claros."
+  default_prompt: "Usa esta skill para producir un contexto portable del hilo actual, separando hechos verificados de inferencias, redactando secretos, capturando el contexto operativo relevante y generando un handoff listo para continuar en otro hilo. Usa modo completo por defecto y modo compacto solo si el usuario pide algo breve."
