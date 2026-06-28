@@ -1,6 +1,6 @@
 ---
 name: portable-context-checkpoint
-description: Create a portable operational handoff for continuing work in a new thread or later session. Use when the user asks for a checkpoint, handoff, context transfer, resume-later package, fresh-thread summary, or reusable project-state snapshot. Best for long technical or product conversations where the next agent needs the current objective, verified status, key decisions, active repo and branch, worktree state, relevant files, tools and services, pending work, and important constraints without rereading the whole thread.
+description: Create a portable operational handoff for continuing work in a new thread or later session. Use when the user asks for a checkpoint, handoff, context transfer, resume-later package, fresh-thread summary, session continuity package, or reusable project-state snapshot. Best for long technical or product conversations where the next agent needs the current objective, verified status, key decisions, active repo and branch, worktree state, relevant files, tools and services, pending work, important constraints, and a safe pointer to the original Codex session file under ~/.codex/sessions without rereading the whole thread.
 ---
 
 # Portable Context Checkpoint
@@ -12,6 +12,8 @@ Generate a copy/paste-ready handoff for starting a new thread without losing con
 Do not produce a loose summary. Produce an operational checkpoint that another agent can act on immediately.
 
 Prefer verified facts over recollection. Redact secrets and unnecessary sensitive data. Include only the context that materially helps continuation.
+
+When local Codex session files are available, include a safe reference to the most likely original session JSONL file. This lets the next agent query the source conversation on demand without pasting the whole thread.
 
 ## Output Modes
 
@@ -41,7 +43,31 @@ If the task involves implementation work, verify the workspace when useful:
 
 Do not blindly trust stale earlier statements if later edits, logs, or validations changed the picture.
 
-### 2. Separate verified facts from inference
+### 2. Capture the source session reference when available
+
+If the local filesystem exposes Codex session files, run the bundled probe from the skill folder:
+
+```bash
+python scripts/codex_session_probe.py --format markdown
+```
+
+If the active project path is known and the shell is currently elsewhere, pass it explicitly:
+
+```bash
+python scripts/codex_session_probe.py --cwd "/absolute/project/path" --format markdown
+```
+
+Use the output as the basis for the checkpoint section `Fuentes de continuidad del hilo Codex`.
+
+Rules:
+
+- Include the session path and query commands, not the full JSONL contents.
+- Treat the selected session as `probable`, not guaranteed, unless directly confirmed.
+- If several Codex sessions are active, include the top candidates and explain that the newest matching file is most likely.
+- If the session file is very large, explicitly warn the next agent to use `tail`, `Select-String`, `rg`, or the helper script instead of opening the whole file.
+- If the environment does not expose `~/.codex/sessions`, say `No disponible en este entorno` and continue.
+
+### 3. Separate verified facts from inference
 
 Classify information before writing:
 
@@ -50,7 +76,7 @@ Classify information before writing:
 
 If something is uncertain, label it explicitly instead of smoothing it into the main state.
 
-### 3. Extract only portable context
+### 4. Extract only portable context
 
 Capture the information another agent needs immediately:
 
@@ -65,7 +91,7 @@ Capture the information another agent needs immediately:
 
 Skip low-value chatter, dead ends, repeated discussion, and verbose play-by-play.
 
-### 4. Capture operational context
+### 5. Capture operational context
 
 Include a concise operational snapshot whenever relevant:
 
@@ -78,7 +104,7 @@ Include a concise operational snapshot whenever relevant:
 
 If multiple repos are in play, identify the main repo and mention any secondary repos only if they affect continuation.
 
-### 5. Redact sensitive information
+### 6. Redact sensitive information
 
 Never copy sensitive values into the checkpoint unless the user explicitly asks and it is clearly safe.
 
@@ -100,7 +126,9 @@ If sensitive information matters to continuation, mention only its location or r
 
 Mask nonessential sensitive values with placeholders such as `<redacted>`.
 
-### 6. Produce the handoff in the required structure
+The Codex session file itself may contain sensitive content. It is acceptable to reference the path, but do not quote large raw session chunks into the checkpoint.
+
+### 7. Produce the handoff in the required structure
 
 Use this structure in `complete` mode:
 
@@ -130,6 +158,13 @@ Use this structure in `complete` mode:
 - Entorno:
 - Servicios / puertos:
 
+## Fuentes de continuidad del hilo Codex
+- Sesion Codex probable:
+- Confianza:
+- Ultima modificacion:
+- Tamano:
+- Como consultar sin cargar todo:
+
 ## Paths y archivos relevantes
 - /ruta/completa/archivo1
 - /ruta/completa/archivo2
@@ -143,6 +178,9 @@ Use this structure in `complete` mode:
 ## Riesgos / bloqueos
 ...
 
+## Prompt recomendado para continuar en nuevo hilo
+...
+
 ## Notas importantes
 ...
 ```
@@ -152,12 +190,23 @@ Rules for output shape:
 - In `compact` mode, keep the same spirit but compress aggressively.
 - In `compact` mode, collapse low-priority detail into short bullets.
 - Add `## Cambios desde el ultimo checkpoint` only when relevant.
+- Keep `## Fuentes de continuidad del hilo Codex` even in compact mode when a session path is available.
 - Prefer short paragraphs or flat bullets.
 - Prefer absolute paths for files.
 - Group related files together when it improves readability.
 - Mention only the most relevant files, not every touched file.
+- The continuation prompt should instruct the next agent to read the checkpoint first, inspect `git status`, avoid reverting unrelated changes, and use the session JSONL path only for targeted searches.
 
-### 7. Create the Markdown file when appropriate
+Recommended continuation prompt shape:
+
+```text
+Lee primero este checkpoint completo. Luego revisa `git status` en el repo indicado.
+No reviertas cambios existentes sin pedir confirmacion.
+Si falta contexto historico, consulta la sesion Codex indicada en `Fuentes de continuidad del hilo Codex` usando busquedas focalizadas, no abriendo el archivo completo.
+Despues continua con el objetivo actual y los siguientes pasos en orden.
+```
+
+### 8. Create the Markdown file when appropriate
 
 In addition to responding in chat, create a Markdown file in the root of the active project when all of these are true:
 
@@ -196,6 +245,7 @@ Before finishing, verify that the checkpoint answers all of these:
 - What important product or technical decisions were made?
 - Which files and paths should the next agent inspect first?
 - Which tools, services, and environments are involved?
+- Where can the next agent query the original Codex thread if needed?
 - What should be done next, in order?
 - What blockers, risks, or assumptions could cause mistakes?
 
@@ -209,6 +259,7 @@ Before finalizing:
 - confirm the latest validated state overrides older plans
 - confirm facts and inferences are separated
 - confirm the branch, worktree, and environment are included when relevant
+- confirm the Codex session reference is included or explicitly unavailable
 - confirm secrets are redacted
 - confirm the next steps are ordered and actionable
 - confirm the chosen project root for the Markdown file makes sense

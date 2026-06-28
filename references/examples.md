@@ -32,6 +32,13 @@ Se aislo el bug al cliente de Baileys. El backend principal no requeria cambios 
 - Entorno: `dev`
 - Servicios / puertos: AWS CLI profile `chatnshop`, Elastic Beanstalk dev
 
+## Fuentes de continuidad del hilo Codex
+- Sesion Codex probable: `C:/Users/artur/.codex/sessions/2026/05/07/rollout-...jsonl`
+- Confianza: `alta`
+- Consulta rapida:
+  `Get-Content -Tail 2000 -LiteralPath "C:/Users/artur/.codex/sessions/2026/05/07/rollout-...jsonl" | Select-String -Pattern "Baileys" -Context 2,2`
+- Nota: no abrir el JSONL completo si es grande; buscar por ruta, error o timestamp.
+
 ## Paths y archivos relevantes
 - C:/repo/ivana-wa-client-api/src/service/baileys/baileys.service.ts
 - C:/repo/ivana-wa-client-api/src/service/baileys/baileys-message-utils.service.ts
@@ -46,6 +53,9 @@ NestJS, Baileys, MySQL, AWS CLI, Elastic Beanstalk.
 
 ## Riesgos / bloqueos
 - Sin despliegue, el bug puede seguir ocurriendo en dev.
+
+## Prompt recomendado para continuar en nuevo hilo
+Lee primero este checkpoint completo. Luego revisa `git status` en `C:/repo/ivana-wa-client-api`. No reviertas cambios existentes sin pedir confirmacion. Si falta contexto historico, consulta la sesion Codex indicada en `Fuentes de continuidad del hilo Codex` con busquedas focalizadas por `Baileys`, `wrapped media` o el UUID del chat. Despues continua con los siguientes pasos en orden.
 
 ## Notas importantes
 - No incluir credenciales de `.env.dev`; solo referenciar su ubicacion.
@@ -86,6 +96,21 @@ La investigacion ya aislo el problema al flujo de ingestion de `whatsapp-web`. E
 - Entorno: `dev`
 - Servicios / puertos: AWS CLI profile `chatnshop`, logs de Elastic Beanstalk, MySQL dev
 
+## Fuentes de continuidad del hilo Codex
+- Sesion Codex probable: `C:/Users/artur/.codex/sessions/2026/05/07/rollout-2026-05-07T18-00-00-...jsonl`
+- Confianza: `alta`; score: `100`
+- Ultima modificacion: `2026-05-07T18:20:31-06:00`
+- Tamano: `84.2 MB`
+- Ultimo usuario detectado: "La imagen no llego a Aiuda..."
+- Ultimo asistente detectado: "Ya aisle el problema al flujo de Baileys..."
+- Como consultar sin cargar todo:
+
+```powershell
+Get-Content -Tail 2000 -LiteralPath "C:/Users/artur/.codex/sessions/2026/05/07/rollout-2026-05-07T18-00-00-...jsonl" | Select-String -Pattern "wrapped media" -Context 2,2
+```
+
+- Nota de seguridad: el JSONL puede contener salidas de herramientas y referencias sensibles; no copiarlo completo.
+
 ## Paths y archivos relevantes
 - C:/repo/ivana-wa-client-api/src/service/baileys/baileys.service.ts
 - C:/repo/ivana-wa-client-api/src/service/baileys/baileys-message-utils.service.ts
@@ -108,6 +133,9 @@ NestJS, Baileys, Axios, MySQL, AWS CLI, CloudWatch, Elastic Beanstalk.
 ## Riesgos / bloqueos
 - El entorno desplegado seguira con el bug hasta que se actualice el servicio.
 - Si aparecen wrappers adicionales no contemplados, puede requerirse ampliar la normalizacion.
+
+## Prompt recomendado para continuar en nuevo hilo
+Lee primero este checkpoint completo. Luego revisa `git status` en los repos indicados. No reviertas cambios existentes sin pedir confirmacion. Si falta contexto historico, consulta la sesion Codex indicada en `Fuentes de continuidad del hilo Codex` con busquedas focalizadas por `Baileys`, `image`, `ephemeral`, `view once`, rutas de archivos o timestamps. Despues continua con el objetivo actual y ejecuta los siguientes pasos en orden.
 
 ## Notas importantes
 - Redactar secretos; no copiar valores de `.env`.
