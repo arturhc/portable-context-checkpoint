@@ -17,10 +17,11 @@ When local Codex session files are available, include a safe reference to the mo
 
 ## Output Modes
 
-Support two modes:
+Support three modes:
 
 - `complete`: default mode. Use for most engineering, debugging, or multi-repo work.
 - `compact`: use when the user explicitly asks for something short, lightweight, or easy to paste quickly.
+- `deep`: use when the user asks for a very detailed checkpoint, a full-history handoff, "todo el hilo", "super detallado", "hasta atras", or when the thread is long enough that recent context is not enough.
 
 If a previous checkpoint exists or the user asks what changed, include an extra section:
 
@@ -66,6 +67,36 @@ Rules:
 - If several Codex sessions are active, include the top candidates and explain that the newest matching file is most likely.
 - If the session file is very large, explicitly warn the next agent to use `tail`, `Select-String`, `rg`, or the helper script instead of opening the whole file.
 - If the environment does not expose `~/.codex/sessions`, say `No disponible en este entorno` and continue.
+
+### 2b. Build a deep source index when requested
+
+When mode is `deep`, do not rely only on the recent conversation tail. Use the selected Codex session JSONL as the historical source.
+
+After identifying the likely session path with `codex_session_probe.py`, run:
+
+```bash
+python scripts/codex_deep_index.py --session-path "/absolute/path/to/session.jsonl" --format markdown --output "/active/project/root/codex-deep-index-YYYY-MM-DD-HH-mm-ss.md"
+```
+
+If the project root is unclear, run without `--output` and use the markdown in memory:
+
+```bash
+python scripts/codex_deep_index.py --session-path "/absolute/path/to/session.jsonl" --format markdown
+```
+
+Use the generated deep index as raw material, not as the final checkpoint. Synthesize it into the normal `# CONTEXTO PORTABLE` structure.
+
+Deep mode requirements:
+
+- scan the full JSONL by streaming, not by opening or pasting it whole
+- extract a timeline from the beginning, middle, and latest state
+- identify major workstreams, projects, deploys, bugs, decisions, AWS resources, database moves, and pending work
+- include the deep index file path under `Fuentes de continuidad del hilo Codex` when written
+- include targeted search commands for the JSONL
+- explicitly say which facts came from the deep index and which were re-verified from the workspace
+- redact secrets again before writing the final checkpoint
+
+If the deep index is too large, read it by sections. Prefer topic samples and the timeline over copying raw output.
 
 ### 3. Separate verified facts from inference
 
@@ -130,7 +161,7 @@ The Codex session file itself may contain sensitive content. It is acceptable to
 
 ### 7. Produce the handoff in the required structure
 
-Use this structure in `complete` mode:
+Use this structure in `complete` and `deep` mode:
 
 ```md
 # CONTEXTO PORTABLE
@@ -141,6 +172,9 @@ Use this structure in `complete` mode:
 ## Estado actual
 ...
 
+## Linea de tiempo resumida
+...
+
 ## Hechos verificados
 ...
 
@@ -148,6 +182,9 @@ Use this structure in `complete` mode:
 ...
 
 ## Decisiones clave
+...
+
+## Mapa de proyectos / componentes
 ...
 
 ## Contexto operativo
@@ -163,6 +200,7 @@ Use this structure in `complete` mode:
 - Confianza:
 - Ultima modificacion:
 - Tamano:
+- Deep index:
 - Como consultar sin cargar todo:
 
 ## Paths y archivos relevantes
@@ -189,6 +227,9 @@ Rules for output shape:
 
 - In `compact` mode, keep the same spirit but compress aggressively.
 - In `compact` mode, collapse low-priority detail into short bullets.
+- In `complete` mode, omit `## Linea de tiempo resumida` and `## Mapa de proyectos / componentes` if they would add little value.
+- In `deep` mode, keep the same structure but expand sections enough to preserve all major workstreams and historical decisions.
+- In `deep` mode, include `## Linea de tiempo resumida` and `## Mapa de proyectos / componentes`.
 - Add `## Cambios desde el ultimo checkpoint` only when relevant.
 - Keep `## Fuentes de continuidad del hilo Codex` even in compact mode when a session path is available.
 - Prefer short paragraphs or flat bullets.
@@ -196,6 +237,7 @@ Rules for output shape:
 - Group related files together when it improves readability.
 - Mention only the most relevant files, not every touched file.
 - The continuation prompt should instruct the next agent to read the checkpoint first, inspect `git status`, avoid reverting unrelated changes, and use the session JSONL path only for targeted searches.
+- In `deep` mode, the continuation prompt should also mention the deep index path, and tell the next agent to consult it before searching the raw JSONL.
 
 Recommended continuation prompt shape:
 
@@ -248,6 +290,8 @@ Before finishing, verify that the checkpoint answers all of these:
 - Where can the next agent query the original Codex thread if needed?
 - What should be done next, in order?
 - What blockers, risks, or assumptions could cause mistakes?
+- If deep mode was requested, did the checkpoint cover the full thread's major workstreams instead of only the latest context?
+- If deep mode was requested, did it include the deep index path or explain why one was not written?
 
 If any of those are missing, the checkpoint is incomplete.
 
@@ -260,6 +304,7 @@ Before finalizing:
 - confirm facts and inferences are separated
 - confirm the branch, worktree, and environment are included when relevant
 - confirm the Codex session reference is included or explicitly unavailable
+- confirm the deep index was generated when the user requested full-history detail
 - confirm secrets are redacted
 - confirm the next steps are ordered and actionable
 - confirm the chosen project root for the Markdown file makes sense

@@ -1,4 +1,4 @@
 interface:
   display_name: "Portable Context"
-  short_description: "Crea un handoff portable con hechos verificados, ruta del hilo Codex y siguientes pasos claros."
-  default_prompt: "Usa esta skill para producir un contexto portable del hilo actual, separando hechos verificados de inferencias, redactando secretos, capturando el contexto operativo relevante, detectando la sesion Codex probable en ~/.codex/sessions y generando un handoff listo para continuar en otro hilo. Usa modo completo por defecto y modo compacto solo si el usuario pide algo breve."
+  short_description: "Crea handoffs portables, incluidos checkpoints profundos desde el JSONL completo del hilo Codex."
+  default_prompt: "Usa esta skill para producir un contexto portable del hilo actual, separando hechos verificados de inferencias, redactando secretos, capturando el contexto operativo relevante, detectando la sesion Codex probable en ~/.codex/sessions y generando un handoff listo para continuar en otro hilo. Usa modo completo por defecto, modo compacto si el usuario pide algo breve y modo deep si pide todo el hilo, super detalle o continuidad historica completa."

@@ -2,6 +2,22 @@
 
 Use these examples as shape guides. Do not copy them verbatim when generating a real checkpoint.
 
+## Deep Mode Notes
+
+Use `deep` mode when the user asks for a full-history handoff. The checkpoint should still use `# CONTEXTO PORTABLE`, but it should include:
+
+- `## Linea de tiempo resumida`
+- `## Mapa de proyectos / componentes`
+- `Deep index:` under `## Fuentes de continuidad del hilo Codex`
+
+Example source line:
+
+```md
+- Deep index: `C:/repo/portable-context-checkpoint-2026-06-27/codex-deep-index-2026-06-27-23-59-00.md`
+```
+
+The deep index is not the final answer. It is an evidence map used to write the final checkpoint.
+
 ## Compact Mode Example
 
 ```md
