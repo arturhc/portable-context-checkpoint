@@ -1,2 +1,4 @@
 __pycache__/
 *.py[cod]
+portable-context-checkpoint-*.md
+codex-deep-index-*.md
