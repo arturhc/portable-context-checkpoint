@@ -20,24 +20,17 @@ from typing import Any, Iterable
 
 
 TOPIC_KEYWORDS: dict[str, list[str]] = {
-    "aiuda-api": ["aiuda-api", "chatnshop-api", "serverless", "lambda", "nestjs", "api gateway"],
-    "aiuda-ui": ["aiuda-ui", "chatnshop-ui", "angular", "frontend", "ui", "responsive", "playwright"],
-    "aiuda-wa-client-api": ["aiuda-wa-client-api", "ivana-wa-client-api", "baileys", "whatsapp web", "qr"],
-    "aiuda-realtime-gateway": ["aiuda-realtime-gateway", "api gateway websocket", "websocket", "realtime", "socket.io"],
-    "aiuda-scheduled-jobs": ["eventbridge", "sqs", "scheduled", "scheduler", "cron", "job", "broadcast"],
-    "aiuda-app-manager": ["aiuda-app-manager", "pm2", "ec2", "deploy manager", "zip"],
-    "aiuda-wa-client-bridge": ["aiuda-wa-client-bridge", "wa client bridge", "bridge ws", "command receiver"],
-    "aiuda-webhook-receiver": ["aiuda-webhook-receiver", "webhook receiver"],
-    "aws-infra": ["aws", "rds", "s3", "cloudfront", "route 53", "route53", "ses", "sns", "iam"],
-    "billing-security": ["billing", "fraud", "hack", "bedrock", "support case", "suspicious"],
-    "database": ["mysql", "rds", "db", "schema", "migration", "dump", "snapshot", "synchronize"],
-    "chat-messages": ["chat", "message", "status", "last message", "reaction", "image", "audio"],
-    "smart-assistants": ["smart assistant", "smart-assistant", "asistente", "assistant", "card", "tarjeta"],
-    "boards": ["board", "tablero", "kanban", "column"],
-    "onboarding-signup": ["signup", "onboarding", "registro", "crear cuenta", "otp", "scraping"],
-    "email-templates": ["email", "template", "mustache", "ses", "plantilla"],
-    "portable-context": ["portable-context", "checkpoint", "codex_session_probe", "jsonl"],
-    "deployment": ["deploy", "despliega", "desplegar", "prod", "production", "github", "push"],
+    "objectives-decisions": ["objective", "objetivo", "requirement", "requisito", "decision", "decisión", "agreed", "acordado"],
+    "frontend-ui": ["frontend", "ui", "component", "componente", "layout", "responsive", "react", "angular", "vue", "css"],
+    "backend-api": ["backend", "api", "endpoint", "controller", "service", "server", "graphql", "grpc", "webhook"],
+    "data-database": ["database", "base de datos", "schema", "migration", "migración", "sql", "table", "query", "snapshot"],
+    "infrastructure-cloud": ["infrastructure", "infraestructura", "cloud", "network", "iam", "terraform", "kubernetes", "docker"],
+    "deployment-operations": ["deploy", "deployment", "despliegue", "release", "production", "producción", "staging", "rollback", "logs"],
+    "testing-quality": ["test", "testing", "prueba", "pytest", "jest", "lint", "build", "ci", "check"],
+    "security-privacy": ["security", "seguridad", "auth", "oauth", "permission", "secret", "vulnerability", "privacy", "redact"],
+    "automation-jobs": ["automation", "automatización", "scheduled", "scheduler", "cron", "job", "queue", "worker"],
+    "integrations-messaging": ["integration", "integración", "webhook", "message", "mensaje", "email", "notification", "notificación"],
+    "documentation-handoff": ["documentation", "documentación", "readme", "handoff", "checkpoint", "context", "jsonl"],
 }
 
 
@@ -154,19 +147,29 @@ def find_latest_session(sessions_dir: Path) -> Path | None:
     return candidates[0] if candidates else None
 
 
-def classify_topics(text: str) -> list[str]:
+def classify_topics(text: str) -> tuple[list[str], list[str]]:
     lowered = text.lower()
-    topics = []
+    topics: list[str] = []
+    matched_keywords: list[str] = []
     for topic, keywords in TOPIC_KEYWORDS.items():
-        if any(keyword in lowered for keyword in keywords):
+        matches = [keyword for keyword in keywords if re.search(rf"(?<![\w-]){re.escape(keyword)}", lowered)]
+        if matches:
             topics.append(topic)
-    return topics or ["general"]
+            matched_keywords.extend(matches)
+    return topics or ["general"], matched_keywords
 
 
 def is_milestone(text: str, role: str) -> bool:
     lowered = text.lower()
     if role == "tool":
-        return any(token in lowered for token in ["git ", "npm ", "aws ", "sls ", "serverless", "deploy", "push"])
+        return any(
+            token in lowered
+            for token in [
+                "git ", "npm ", "pnpm ", "yarn ", "python ", "pytest ",
+                "dotnet ", "cargo ", "go ", "docker ", "kubectl ",
+                "terraform ", "deploy", "push", "test", "build",
+            ]
+        )
     return any(re.search(pattern, lowered) for pattern in MILESTONE_PATTERNS)
 
 
@@ -202,6 +205,7 @@ def extract_event(record: dict[str, Any]) -> dict[str, str] | None:
 
 def build_index(path: Path, max_events_per_topic: int, recent_limit: int) -> dict[str, Any]:
     topic_counts: Counter[str] = Counter()
+    search_term_counts: Counter[str] = Counter()
     role_counts: Counter[str] = Counter()
     tool_counts: Counter[str] = Counter()
     first_seen: dict[str, str] = {}
@@ -233,7 +237,8 @@ def build_index(path: Path, max_events_per_topic: int, recent_limit: int) -> dic
         role_counts[role] += 1
         if role == "tool":
             tool_counts[event["kind"]] += 1
-        topics = classify_topics(text)
+        topics, matched_keywords = classify_topics(text)
+        search_term_counts.update(matched_keywords)
         event_with_topics = {**event, "topics": topics}
         recent.append(event_with_topics)
 
@@ -257,6 +262,7 @@ def build_index(path: Path, max_events_per_topic: int, recent_limit: int) -> dic
         "event_count": event_count,
         "role_counts": dict(role_counts),
         "tool_counts": dict(tool_counts),
+        "search_terms": [term for term, _ in search_term_counts.most_common(8)],
         "topics": [
             {
                 "topic": topic,
@@ -278,6 +284,8 @@ def md_escape(text: str) -> str:
 
 def markdown(index: dict[str, Any], max_timeline: int) -> str:
     session_path = index["session_path"]
+    search_terms = index.get("search_terms") or ["error", "decision", "todo"]
+    pattern_args = ",".join(f'"{term}"' for term in search_terms[:5])
     lines = [
         "# DEEP CODEX SESSION INDEX",
         "",
@@ -341,7 +349,8 @@ def markdown(index: dict[str, Any], max_timeline: int) -> str:
             "## Busquedas focalizadas recomendadas",
             "",
             "```powershell",
-            f"Select-String -LiteralPath \"{session_path}\" -Pattern \"aiuda-api\",\"aiuda-ui\",\"deploy\",\"error\",\"playwright\" -Context 2,2",
+            f"Select-String -LiteralPath \"{session_path}\" -Pattern {pattern_args} -Context 2,2",
+            f"Get-Content -LiteralPath \"{session_path}\" -Tail 2000 | Select-String -Pattern {pattern_args} -Context 2,2",
             "```",
             "",
             "## Reglas de seguridad",

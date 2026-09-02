@@ -15,6 +15,8 @@ Prefer verified facts over recollection. Redact secrets and unnecessary sensitiv
 
 When local Codex session files are available, include a safe reference to the most likely original session JSONL file. This lets the next agent query the source conversation on demand without pasting the whole thread.
 
+Every generated checkpoint must also contain a durable retrieval protocol for the source thread. Treat the original JSONL as immutable source material, the deep index as the first historical retrieval layer, and targeted searches as the final escalation. Do not rely on the next thread retaining this conversation in its active context.
+
 ## Output Modes
 
 Support three modes:
@@ -84,6 +86,8 @@ If the project root is unclear, run without `--output` and use the markdown in m
 python scripts/codex_deep_index.py --session-path "/absolute/path/to/session.jsonl" --format markdown
 ```
 
+Treat the selected session JSONL, referenced with its absolute path, as the historical source of truth. The checkpoint is the current operational map and the deep index is the retrieval map; neither replaces the original JSONL when a historical detail, rationale, or decision must be recovered.
+
 Use the generated deep index as raw material, not as the final checkpoint. Synthesize it into the normal `# CONTEXTO PORTABLE` structure.
 
 Deep mode requirements:
@@ -95,8 +99,36 @@ Deep mode requirements:
 - include targeted search commands for the JSONL
 - explicitly say which facts came from the deep index and which were re-verified from the workspace
 - redact secrets again before writing the final checkpoint
+- include a substantial historical summary of every major workstream discussed in the thread, not only the latest task
+- preserve enough timeline, decisions, completed work, reversals, risks, and pending work that a new thread can recover any important topic through the deep index and the source JSONL
 
 If the deep index is too large, read it by sections. Prefer topic samples and the timeline over copying raw output.
+
+### 2c. Include the mandatory thread-memory retrieval protocol
+
+Every checkpoint that has a source session must include `## Protocolo para consultar este hilo` immediately after `## Fuentes de continuidad del hilo Codex`.
+
+The `## Fuentes de continuidad del hilo Codex` section must always include the **absolute path** to the selected session JSONL and state explicitly: `El JSONL es la fuente historica de verdad; el checkpoint y deep index son mapas de recuperacion.` Never provide a relative session path when an absolute path is available.
+
+This section is mandatory in every mode and must tell the next agent, in this exact operational order:
+
+1. Read the checkpoint completely to understand current state, scope, constraints, and the exact JSONL path.
+2. Treat the absolute-path JSONL as the historical source of truth. If the user says `busca en nuestro hilo previo X`, the request means consult this JSONL through the safe retrieval strategy, not just the visible conversation tail.
+3. Read the deep index, when one exists, before searching the raw JSONL.
+4. Use the deep index headings, topic samples, timeline, and recommended searches to identify the smallest relevant historical area.
+5. Search the raw JSONL only with narrow terms, a bounded tail, or a line-range helper. Never open, paste, or embed the full JSONL in an agent prompt.
+6. Re-verify mutable facts in the workspace, logs, AWS, database, or running services before acting.
+7. Add newly confirmed decisions to the next checkpoint so the retrieval chain stays current.
+
+Include concrete PowerShell commands tailored to the selected JSONL and deep-index paths. At minimum provide one `Select-String` example and one bounded `Get-Content -Tail` example. Make it explicit that the raw session may contain secrets and personal data, so retrieved snippets must be redacted before reuse.
+
+The protocol must explicitly tell the next agent that the user may invoke this retrieval at any time with requests such as `busca en nuestro hilo previo lo de X`, `revisa que decidimos sobre Y`, or `ubica el contexto de Z`. In that case, use checkpoint -> deep index -> targeted JSONL search -> live verification, in that order.
+
+If the user asks for semantic retrieval, explain the distinction clearly in the checkpoint:
+
+- The deep index is a structured/lexical retrieval layer, not embeddings.
+- A true vector index must be built locally from redacted, bounded chunks; never upload or embed the raw session JSONL with a hosted provider by default.
+- A local lexical index plus the deep index is the safe default until a redaction-aware vector index is intentionally implemented.
 
 ### 3. Separate verified facts from inference
 
@@ -153,7 +185,7 @@ Redact or omit:
 If sensitive information matters to continuation, mention only its location or role. Example:
 
 - `environment/.env.dev` contains the dev database credentials
-- `AWS CLI profile chatnshop is available locally`
+- `Cloud provider CLI profile dev is available locally`
 
 Mask nonessential sensitive values with placeholders such as `<redacted>`.
 
@@ -196,12 +228,16 @@ Use this structure in `complete` and `deep` mode:
 - Servicios / puertos:
 
 ## Fuentes de continuidad del hilo Codex
-- Sesion Codex probable:
+- Sesion Codex fuente de verdad (ruta absoluta):
+- Declaracion de fuente de verdad: El JSONL es la fuente historica de verdad; el checkpoint y deep index son mapas de recuperacion.
 - Confianza:
 - Ultima modificacion:
 - Tamano:
 - Deep index:
 - Como consultar sin cargar todo:
+
+## Protocolo para consultar este hilo
+...
 
 ## Paths y archivos relevantes
 - /ruta/completa/archivo1
@@ -229,6 +265,8 @@ Rules for output shape:
 - In `compact` mode, collapse low-priority detail into short bullets.
 - In `complete` mode, omit `## Linea de tiempo resumida` and `## Mapa de proyectos / componentes` if they would add little value.
 - In `deep` mode, keep the same structure but expand sections enough to preserve all major workstreams and historical decisions.
+- In `deep` mode, write a genuinely comprehensive historical handoff. Cover every high-signal workstream represented in the source thread: product, UI, backend, data, infrastructure, deployment, documentation, testing, operational incidents, reversals, and pending work. Do not reduce a months-long thread to only the last objective.
+- A deep checkpoint is not a transcript: retain decisions and outcomes, omit low-value chatter, and route fine detail back to the absolute-path JSONL through targeted commands.
 - In `deep` mode, include `## Linea de tiempo resumida` and `## Mapa de proyectos / componentes`.
 - Add `## Cambios desde el ultimo checkpoint` only when relevant.
 - Keep `## Fuentes de continuidad del hilo Codex` even in compact mode when a session path is available.
@@ -238,13 +276,15 @@ Rules for output shape:
 - Mention only the most relevant files, not every touched file.
 - The continuation prompt should instruct the next agent to read the checkpoint first, inspect `git status`, avoid reverting unrelated changes, and use the session JSONL path only for targeted searches.
 - In `deep` mode, the continuation prompt should also mention the deep index path, and tell the next agent to consult it before searching the raw JSONL.
+- The continuation prompt must mention the `Protocolo para consultar este hilo` and prohibit loading the full raw JSONL.
 
 Recommended continuation prompt shape:
 
 ```text
-Lee primero este checkpoint completo. Luego revisa `git status` en el repo indicado.
+Lee primero este checkpoint completo. El JSONL absoluto indicado en `Fuentes de continuidad del hilo Codex` es la fuente historica de verdad; el checkpoint y deep index solo son mapas para consultarlo sin cargarlo completo.
+Luego revisa `git status` en el repo indicado.
 No reviertas cambios existentes sin pedir confirmacion.
-Si falta contexto historico, consulta la sesion Codex indicada en `Fuentes de continuidad del hilo Codex` usando busquedas focalizadas, no abriendo el archivo completo.
+Si el usuario pide buscar algo del hilo previo, o falta contexto historico, consulta primero el deep index y despues el JSONL absoluto mediante busquedas focalizadas, no abriendo el archivo completo.
 Despues continua con el objetivo actual y los siguientes pasos en orden.
 ```
 
@@ -288,6 +328,7 @@ Before finishing, verify that the checkpoint answers all of these:
 - Which files and paths should the next agent inspect first?
 - Which tools, services, and environments are involved?
 - Where can the next agent query the original Codex thread if needed?
+- Does the checkpoint include the source JSONL's absolute path and explicitly mark it as the historical source of truth?
 - What should be done next, in order?
 - What blockers, risks, or assumptions could cause mistakes?
 - If deep mode was requested, did the checkpoint cover the full thread's major workstreams instead of only the latest context?
@@ -304,7 +345,10 @@ Before finalizing:
 - confirm facts and inferences are separated
 - confirm the branch, worktree, and environment are included when relevant
 - confirm the Codex session reference is included or explicitly unavailable
+- confirm the source JSONL path is absolute and marked as the historical source of truth whenever available
 - confirm the deep index was generated when the user requested full-history detail
+- confirm `## Protocolo para consultar este hilo` is present whenever a source session is available
+- confirm the protocol directs the next agent to checkpoint -> deep index -> targeted raw search -> live re-verification
 - confirm secrets are redacted
 - confirm the next steps are ordered and actionable
 - confirm the chosen project root for the Markdown file makes sense
